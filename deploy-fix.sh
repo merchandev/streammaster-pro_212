@@ -36,6 +36,39 @@ done
 echo -e "${GREEN}✅ Todos los archivos necesarios existen${NC}"
 echo ""
 
+
+# ============================================
+# PASO PREVIO: Liberar puertos críticos
+# ============================================
+echo -e "${BLUE}🔓 PASO PREVIO: Liberando puertos críticos (80, 443, 1935)...${NC}"
+
+# 1. Detener servicios del sistema host que pueden causar conflictos
+echo "Deteniendo servicios del sistema (apache2, nginx)..."
+systemctl stop apache2 2>/dev/null || true
+systemctl stop nginx 2>/dev/null || true
+systemctl stop httpd 2>/dev/null || true
+
+# 2. Matar cualquier proceso que siga ocupando los puertos
+kill_port() {
+    local port=$1
+    # Intenta usar fuser si está disponible
+    if command -v fuser &> /dev/null; then
+        fuser -k -n tcp $port 2>/dev/null || true
+    fi
+    # Intenta usar lsof si está disponible
+    if command -v lsof &> /dev/null; then
+        lsof -t -i:$port | xargs -r kill -9 2>/dev/null || true
+    fi
+}
+
+kill_port 80
+kill_port 443
+kill_port 1935
+kill_port 8080
+
+echo -e "${GREEN}✅ Puertos asegurados${NC}"
+echo ""
+
 # ============================================
 # PASO 2: Detener servicios existentes
 # ============================================

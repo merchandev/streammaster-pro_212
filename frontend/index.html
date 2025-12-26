@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamMaster Pro - Streaming Profesional</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+
+    <!-- Hero Section -->
+    <header class="hero">
+        <div class="hero-content">
+            <div class="hero-text">
+                <h1>Streaming Ultra Rápido <br>y Estable.</h1>
+                <p>La solución definitiva para transmitir desde OBS/vMix con baja latencia y sin cortes.</p>
+                <div class="cta-group">
+                    <a href="player.html" class="btn btn-primary">
+                        <i class="fas fa-play"></i> Ver Demo en Vivo
+                    </a>
+                    <a href="#config" class="btn btn-secondary">
+                        <i class="fas fa-cog"></i> Configurar
+                    </a>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <!-- Visual Placeholder (CSS Shapes or SVG) -->
+                <div class="feature-card" style="text-align: center;">
+                    <i class="fas fa-broadcast-tower" style="font-size: 5rem; color: var(--primary);"></i>
+                    <h3 style="margin-top: 1rem;">En Vivo Ahora</h3>
+                    <div
+                        style="background: #ef4444; color: white; padding: 0.5rem; border-radius: 0.5rem; display: inline-block; margin-top: 0.5rem; font-weight: bold; font-size: 0.8rem;">
+                        LIVE</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Features -->
+    <section class="features-grid">
+        <div class="feature-card">
+            <i class="fas fa-bolt feature-icon"></i>
+            <h3>Ultra Baja Latencia</h3>
+            <p>Optimizado para entregar video en 3-5 segundos. Interactúa con tu audiencia en tiempo real.</p>
+        </div>
+        <div class="feature-card">
+            <i class="fas fa-shield-alt feature-icon"></i>
+            <h3>Estabilidad Total</h3>
+            <p>Configuración Nginx robusta para evitar caídas y buffering, incluso en redes inestables.</p>
+        </div>
+        <div class="feature-card">
+            <i class="fas fa-code-branch feature-icon"></i>
+            <h3>Compatible con Todo</h3>
+            <p>Funciona nativamente con OBS Studio, vMix, FFmpeg y cualquier encoder RTMP estándar.</p>
+        </div>
+    </section>
+
+    <!-- Config Section -->
+    <section id="config" class="config-section">
+        <div class="section-container">
+            <h2 class="section-title">Configura tu Transmisión</h2>
+
+            <div class="config-box">
+                <div class="input-group">
+                    <label>URL del Servidor (Server):</label>
+                    <div class="copy-input">
+                        <input type="text" id="rtmp-url" readonly>
+                        <button class="btn-copy" onclick="copy('rtmp-url')">Copiar</button>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Clave de Transmisión (Stream Key):</label>
+                    <div class="copy-input">
+                        <input type="text" value="M0nagas_Live_Secure_2025" readonly id="stream-key">
+                        <button class="btn-copy" onclick="copy('stream-key')">Copiar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="config-box">
+                <div class="input-group">
+                    <label>Enlace del Reproductor (Compartir):</label>
+                    <div class="copy-input">
+                        <input type="text" id="player-url" readonly>
+                        <button class="btn-copy" onclick="copy('player-url')">Copiar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <p>StreamMaster Pro v2.0 &copy; 2025</p>
+    </footer>
+
+    <script>
+        // Configuración Dinámica
+        const host = window.location.hostname;
+
+        // RTMP URL (siempre puerto 1935)
+        document.getElementById('rtmp-url').value = `rtmp://${host}:1935/live`;
+
+        // Player URL
+        document.getElementById('player-url').value = window.location.origin + '/player.html';
+
+        function copy(id) {
+            const el = document.getElementById(id);
+            el.select();
+            document.execCommand('copy');
+            const btn = el.nextElementSibling;
+            const original = btn.textContent;
+            btn.textContent = '¡Copiado!';
+            setTimeout(() => btn.textContent = original, 2000);
+        }
+    </script>
+</body>
+
+</html>

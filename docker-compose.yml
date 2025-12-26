@@ -1,0 +1,56 @@
+services:
+  # Servidor RTMP principal con Nginx
+  rtmp-server:
+    build: ./nginx
+    container_name: streammaster-rtmp
+    restart: unless-stopped
+    ports:
+      - "1935:1935" # Puerto RTMP para encoders
+      - "8080:80" # Puerto HTTP para HLS
+      # volumes:
+      # Solo montar directorios, no archivos individuales
+      # - ./data/streams:/tmp/streams # DESHABILITADO: El montaje oculta la carpeta creada en el build
+      # - ./logs/nginx:/var/log/nginx # DESHABILITADO: Posible conflicto de permisos
+    networks:
+      - streamnet
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+    # El Dockerfile ya crea los directorios necesarios
+    command: nginx -g 'daemon off;'
+
+  # Servidor web que actuará como Proxy Inverso y SSL Termination
+  web:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile.web
+    container_name: streammaster-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Config y frontend ya están copiados en la imagen (Dockerfile.web)
+      # Mantenemos solo los volúmenes de Certbot
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+      # Montaje para persistencia de la config SSL
+      # - ./nginx/web.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - streamnet
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+
+  # Servicio para generar y renovar certificados SSL
+  certbot:
+    image: certbot/certbot
+    container_name: streammaster-certbot
+    volumes:
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+networks:
+  streamnet:
+    driver: bridge

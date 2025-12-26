@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamMaster Pro - En Vivo</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- FontAwesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <div id="player-container">
+        <!-- Live Badge -->
+        <div class="live-indicator">
+            <span class="dot"></span> EN VIVO
+        </div>
+
+        <!-- Home Button -->
+        <a href="index.html" class="home-btn">
+            <i class="fas fa-arrow-left"></i> Inicio
+        </a>
+
+        <!-- Video Element -->
+        <video id="video-player" playsinline muted autoplay poster="assets/poster.jpg"></video>
+
+        <!-- Unmute Overlay (Nuevo) -->
+        <div id="unmute-overlay" class="unmute-overlay" onclick="unmuteVideo()">
+            <button class="unmute-btn">
+                <i class="fas fa-volume-up"></i> Activar Sonido
+            </button>
+        </div>
+
+        <!-- Overlay de Carga / Offline -->
+        <div id="offline-overlay" class="overlay">
+            <div class="overlay-content">
+                <div class="pulse-ring"></div>
+                <div class="status-icon">
+                    <i class="fas fa-satellite-dish"></i>
+                </div>
+                <h2 id="status-title">Conectando...</h2>
+                <p id="status-desc">Esperando señal del servidor...</p>
+
+                <div class="reconnect-box" id="reconnect-box" style="display: none;">
+                    <div class="loader"></div>
+                    <span>Reintentando (<span id="attempt-count">0</span>/10)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- New Glass Controls -->
+        <div class="controls-bar">
+            <!-- Left Group -->
+            <div class="controls-group">
+                <button id="btn-toggle" class="control-btn big-btn" onclick="togglePlayback()">
+                    <i class="fas fa-play" id="icon-toggle"></i>
+                </button>
+
+                <div class="volume-control">
+                    <button class="control-btn" id="btn-mute" onclick="toggleMute()">
+                        <i class="fas fa-volume-up" id="icon-volume"></i>
+                    </button>
+                    <input type="range" id="volume-slider" min="0" max="1" step="0.1" value="0">
+                </div>
+            </div>
+
+            <!-- Right Group -->
+            <div class="controls-group">
+                <button class="control-btn" onclick="reloadStream()" title="Recargar señal">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+                <button class="control-btn" onclick="toggleFullscreen()" title="Pantalla Completa">
+                    <i class="fas fa-expand"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.15/dist/hls.min.js"></script>
+    <script>
+        // CONFIGURACIÓN
+        // Usamos ruta relativa para que funcione tanto en HTTP como HTTPS
+        const streamId = 'M0nagas_Live_Secure_2025';
+        const hlsUrl = `/hls/${streamId}.m3u8`;
+
+        // REFERENCIAS
+        const video = document.getElementById('video-player');
+        const overlay = document.getElementById('offline-overlay');
+        const unmuteOverlay = document.getElementById('unmute-overlay');
+        const statusTitle = document.getElementById('status-title');
+        const statusDesc = document.getElementById('status-desc');
+        const reconnectBox = document.getElementById('reconnect-box');
+        const attemptSpan = document.getElementById('attempt-count');
+        const container = document.getElementById('player-container');
+
+        // ICONOS
+        const iconToggle = document.getElementById('icon-toggle');
+        const iconVolume = document.getElementById('icon-volume');
+        const volSlider = document.getElementById('volume-slider');
+
+        let hls = null;
+        let isPlaying = false;
+        let retryCount = 0;
+        const MAX_RETRIES = 10;
+
+        // Limpiar estado previo al cargar
+        window.addEventListener('load', () => {
+            stopStream();
+            setTimeout(initPlayer, 100);
+        });
+
+        function initPlayer() {
+            // Asegurar limpieza total antes de iniciar
+            if (hls) {
+                hls.destroy();
+                hls = null;
+            }
+
+            statusTitle.textContent = "Conectando...";
+            statusDesc.textContent = "Buscando señal de transmisión...";
+            overlay.style.display = 'flex';
+            reconnectBox.style.display = 'none';
+
+            // Mostrar el botón de unmute si está muted
+            if (video.muted) {
+                unmuteOverlay.style.display = 'flex';
+                volSlider.value = 0;
+            } else {
+                unmuteOverlay.style.display = 'none';
+                volSlider.value = video.volume;
+            }
+
+            if (Hls.isSupported()) {
+                hls = new Hls({
+                    debug: false,
+                    enableWorker: true,
+                    lowLatencyMode: true,
+                    backBufferLength: 0, // No guardar buffer pasado para evitar loops de audio
+                });
+
+                hls.loadSource(hlsUrl);
+                hls.attachMedia(video);
+
+                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    console.log('✅ Stream encontrado');
+                    retryCount = 0;
+                    playVideo();
+                });
+
+                hls.on(Hls.Events.ERROR, (event, data) => {
+                    if (data.fatal) {
+                        switch (data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                console.log('🌐 Error de red...');
+                                handleNetworkError();
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                console.log('⚠️ Error de media, recuperando...');
+                                hls.recoverMediaError();
+                                break;
+                            default:
+                                showOffline();
+                                break;
+                        }
+                    }
+                });
+
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                // Safari
+                video.src = hlsUrl;
+                video.addEventListener('loadedmetadata', () => {
+                    playVideo();
+                });
+                video.addEventListener('error', handleNetworkError);
+            }
+        }
+
+        function playVideo() {
+            const playPromise = video.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    isPlaying = true;
+                    // Si el navegador fuerza mute, asegurar que el UI lo refleje
+                    if (video.muted) {
+                        unmuteOverlay.style.display = 'flex';
+                        updateVolIcon();
+                    }
+                    updateUI(true);
+                }).catch(e => {
+                    console.log('Autoplay bloqueado');
+                    statusTitle.textContent = "Listo para reproducir";
+                    statusDesc.textContent = "Haz clic en Play para comenzar";
+                    updateUI(false);
+                });
+            }
+        }
+
+        function unmuteVideo() {
+            video.muted = false;
+            video.volume = 1;
+            volSlider.value = 1;
+            unmuteOverlay.style.opacity = '0';
+            setTimeout(() => {
+                unmuteOverlay.style.display = 'none';
+                unmuteOverlay.style.opacity = '1'; // Reset opacity for next time
+            }, 300);
+            updateVolIcon();
+        }
+
+        function togglePlayback() {
+            if (video.paused) {
+                if (!hls && !video.src) {
+                    initPlayer();
+                } else {
+                    video.play();
+                }
+                isPlaying = true;
+            } else {
+                video.pause();
+                isPlaying = false;
+            }
+            updateUI(isPlaying);
+        }
+
+        // Función CRÍTICA para evitar audio duplicado
+        function stopStream() {
+            if (hls) {
+                hls.stopLoad(); // Detener carga de red
+                hls.detachMedia(); // Separar del video
+                hls.destroy(); // Destruir instancia
+                hls = null;
+            }
+            video.pause();
+            video.removeAttribute('src'); // Quitar fuente
+            video.load(); // Forzar al navegador a soltar el buffer
+            isPlaying = false;
+            updateUI(false);
+        }
+
+        function reloadStream() {
+            stopStream();
+            // Pequeño delay para asegurar que el navegador limpie memoria
+            setTimeout(initPlayer, 200);
+        }
+
+        function handleNetworkError() {
+            if (retryCount < MAX_RETRIES) {
+                retryCount++;
+                attemptSpan.textContent = retryCount;
+                reconnectBox.style.display = 'flex';
+                statusTitle.textContent = "Señal perdida";
+                statusDesc.textContent = "Intentando reconectar...";
+
+                setTimeout(() => {
+                    // Reintentar reiniciando completamente
+                    if (hls) hls.startLoad();
+                    else initPlayer();
+                }, 2000);
+            } else {
+                showOffline();
+            }
+        }
+
+        function showOffline(title = "Stream Offline", desc = "La transmisión no está activa en este momento.") {
+            overlay.style.display = 'flex';
+            statusTitle.textContent = title;
+            statusDesc.textContent = desc;
+            reconnectBox.style.display = 'none';
+            isPlaying = false;
+            updateUI(false);
+        }
+
+        function updateUI(playing) {
+            if (playing) {
+                overlay.style.display = 'none';
+                iconToggle.className = 'fas fa-pause';
+            } else {
+                iconToggle.className = 'fas fa-play';
+            }
+        }
+
+        // Volumen
+        volSlider.addEventListener('input', (e) => {
+            video.volume = e.target.value;
+            video.muted = false;
+            if (unmuteOverlay.style.display !== 'none') {
+                unmuteVideo();
+            }
+            updateVolIcon();
+        });
+
+        function toggleMute() {
+            video.muted = !video.muted;
+            updateVolIcon();
+        }
+
+        function updateVolIcon() {
+            if (video.muted || video.volume === 0) iconVolume.className = 'fas fa-volume-mute';
+            else if (video.volume < 0.5) iconVolume.className = 'fas fa-volume-down';
+            else iconVolume.className = 'fas fa-volume-up';
+        }
+
+        // Pantalla Completa Mejorada (Soporte iPhone/Safari)
+        function toggleFullscreen() {
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                if (container.requestFullscreen) {
+                    container.requestFullscreen();
+                } else if (video.webkitEnterFullscreen) {
+                    // iOS Safari solo permite fullscreen en el elemento VIDEO, no en el contenedor
+                    video.webkitEnterFullscreen();
+                } else if (container.webkitRequestFullscreen) {
+                    container.webkitRequestFullscreen();
+                }
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>

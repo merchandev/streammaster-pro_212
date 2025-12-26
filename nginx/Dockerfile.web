@@ -1,0 +1,21 @@
+FROM nginx:alpine
+
+# Copiar configuración personalizada
+COPY nginx/web.conf /etc/nginx/conf.d/default.conf
+COPY nginx/stat.xsl /usr/local/nginx/html/stat.xsl
+
+# Eliminar archivos default de nginx
+RUN rm -rf /usr/share/nginx/html/*
+
+# Copiar archivos del frontend
+# Nota: Copiamos el contenido de la carpeta frontend a la raíz de html
+COPY frontend/ /usr/share/nginx/html/
+
+# Verificar archivos copiados durante el build (para debug)
+RUN ls -la /usr/share/nginx/html/
+
+# Asegurar permisos
+RUN chmod -R 755 /usr/share/nginx/html
+
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

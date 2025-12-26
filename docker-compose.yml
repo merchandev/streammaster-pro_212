@@ -5,8 +5,8 @@ services:
     container_name: streammaster-rtmp
     restart: unless-stopped
     ports:
-      - "1935:1935" # Puerto RTMP para encoders
-      - "8080:80" # Puerto HTTP para HLS
+      - "1936:1935" # Puerto RTMP para encoders (cambiado para evitar conflicto)
+      - "8082:80" # Puerto HTTP para HLS (cambiado para evitar conflicto)
       # volumes:
       # Solo montar directorios, no archivos individuales
       # - ./data/streams:/tmp/streams # DESHABILITADO: El montaje oculta la carpeta creada en el build
@@ -30,7 +30,7 @@ services:
     restart: unless-stopped
     ports:
       - "8081:80"
-      - "443:443"
+      - "8443:443" # Puerto HTTPS cambiado para evitar conflicto
     volumes:
       # Config y frontend ya están copiados en la imagen (Dockerfile.web)
       # Mantenemos solo los volúmenes de Certbot

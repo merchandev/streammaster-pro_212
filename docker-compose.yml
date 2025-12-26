@@ -29,7 +29,7 @@ services:
     container_name: streammaster-web
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "8081:80"
       - "443:443"
     volumes:
       # Config y frontend ya están copiados en la imagen (Dockerfile.web)

@@ -143,6 +143,6 @@ Write-Host "✅ Proceso completado" -ForegroundColor Green
 Write-Host "================================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "🔍 Verifica ahora:" -ForegroundColor Yellow
-Write-Host "   • Panel: http://72.62.86.94" -ForegroundColor White
-Write-Host "   • Player: http://72.62.86.94/player.html" -ForegroundColor White
+Write-Host "   - Panel: http://72.62.86.94" -ForegroundColor White
+Write-Host "   - Player: http://72.62.86.94/player.html" -ForegroundColor White
 Write-Host ""
